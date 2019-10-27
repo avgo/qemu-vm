@@ -7,10 +7,11 @@ source "$conf_rp"                      || exit 1
 
 
 action_run() {
+	local snapshot=-snapshot
 	qemu-system-x86_64                         \
 		-m 2G                              \
 		-hda "${virt_hdd}"                 \
-		-snapshot                          \
+		$snapshot                          \
 		-nodefaults                        \
 		-nographic                         \
 		-vga none                          \
