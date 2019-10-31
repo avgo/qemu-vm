@@ -1,2 +1,5 @@
 # virtual hdd drive
 #virt_hdd=/path/virt_hdd.qcow2
+
+# virtual cd-rom drive
+#virt_cdrom=/path/virt_cdrom.qcow2
