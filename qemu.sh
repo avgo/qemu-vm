@@ -36,7 +36,9 @@ action_run_setup2() {
 		-m 2G                       \
 		-hda "${virt_hdd}"          \
 		$snapshot                   \
-		-net nic -net user & PID=$!
+		-device virtio-net,netdev=network0,mac=52:54:00:12:34:01 \
+		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no
+#		-net nic -net tap & PID=$!
 	echo PID: $PID
 }
 
