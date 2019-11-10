@@ -32,13 +32,22 @@ action_run_setup() {
 
 action_run_setup2() {
 	local snapshot=-snapshot
+	local sn_str
+	if test x"$snapshot" = x; then
+		sn_str=no
+	else
+		sn_str=yes
+	fi
+	echo snapshot: $sn_str
+	echo hda: $virt_hdd
+	read
 	qemu-system-x86_64                  \
 		-m 2G                       \
 		-hda "${virt_hdd}"          \
 		$snapshot                   \
 		-device virtio-net,netdev=network0,mac=52:54:00:12:34:01 \
-		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no
-#		-net nic -net tap & PID=$!
+		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
+		&
 	echo PID: $PID
 }
 

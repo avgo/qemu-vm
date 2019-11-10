@@ -1,3 +1,4 @@
+# service network-manager stop
 ip link add name br0 type bridge &&
 ip tuntap add dev tap0 mode tap &&
 # ip addr flush dev br0 &&
