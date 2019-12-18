@@ -9,11 +9,11 @@ ip link set tap0 nomaster &&
 ip tuntap delete dev tap0 mode tap &&
 ip link delete br0 &&
 
-service NetworkManager restart &&
+service NetworkManager restart
 
-echo bridge: &&
-bridge link &&
-echo tuntap: &&
-ip tuntap show &&
-echo ip a: &&
+echo bridge:
+bridge link
+echo tuntap:
+ip tuntap show
+echo ip a:
 ip a
