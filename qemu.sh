@@ -51,8 +51,27 @@ action_run_setup2() {
 	echo PID: $PID
 }
 
+action_run_snapshot() {
+	source "${script_dir}/qemu.lib.sh" || return 1
+	qemu_snapshot "${backing_fn}"
+	qemu_snapshot "${qemu_snapshot_filename}"
+	echo sudo "${script_rp}" run_snapshot_root "${qemu_snapshot_filename}"
+	sudo "${script_rp}" run_snapshot_root "${qemu_snapshot_filename}"
+}
+
+action_run_snapshot_root() {
+	echo UID: $UID
+	qemu-system-x86_64                  \
+		-m 2G                       \
+		-hda "${1}"                 \
+		-device virtio-net,netdev=network0,mac=52:54:00:12:34:01 \
+		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
+		&
+	echo "PID: $PID hda: ${1}"
+}
+
 main() {
-	if test $# -ne 1; then
+	if test $# -lt 1; then
 		echo "error: " >&2
 		return 1
 	fi
@@ -61,6 +80,8 @@ main() {
 	run) ;;
 	run_setup) ;;
 	run_setup2) ;;
+	run_snapshot) ;;
+	run_snapshot_root) ;;
 	*)	echo "error: bad action '${action}'" >&2
 		return 1
 		;;
