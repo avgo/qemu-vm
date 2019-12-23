@@ -5,19 +5,34 @@ script_dir="$(dirname "${script_rp}")" || exit 1
 conf_rp="${script_dir}/qemu.conf.sh"
 source "$conf_rp"                      || exit 1
 
-
 action_run() {
-	local snapshot=-snapshot
-	xterm -T "MY QEMU" -geometry "100x80-0+0" -e qemu-system-x86_64 \
-		-m 2G                              \
-		-hda "${virt_hdd}"                 \
-		$snapshot                          \
-		-nodefaults                        \
-		-nographic                         \
-		-vga none                          \
-		-serial stdio                      \
-		-net nic -net user & PID=$!
-		#-net nic,vlan=0 -net user,vlan=0
+	sudo "${script_rp}" run_root "$@"
+}
+
+action_run_root() {
+	local snapshot virt_hdd_loc
+
+	if test $# -ne 1; then
+		echo error: >&2
+		return 1
+	fi
+
+	if test x"$1" = x-snapshot; then
+		snapshot=-snapshot
+		virt_hdd_loc="$virt_hdd"
+	else
+		snapshot=
+		virt_hdd_loc="$1"
+	fi
+
+	qemu-system-x86_64                  \
+		-m 2G                       \
+		-hda "${virt_hdd_loc}"      \
+		$snapshot                   \
+		-device virtio-net,netdev=network0,mac=52:54:00:12:34:01 \
+		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
+		&
+
 	echo PID: $PID
 }
 
@@ -78,6 +93,7 @@ main() {
 	local action="$1"; shift
 	case "${action}" in
 	run) ;;
+	run_root) ;;
 	run_setup) ;;
 	run_setup2) ;;
 	run_snapshot) ;;
