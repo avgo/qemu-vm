@@ -85,6 +85,17 @@ action_run_snapshot_root() {
 	echo "PID: $PID hda: ${1}"
 }
 
+action_snapshot() {
+	if test $# -ne 1; then
+		echo "error: bad usage." >&2
+		return 1
+	fi
+
+	source "${script_dir}/qemu.lib.sh" || return 1
+
+	qemu_snapshot "${1}"
+}
+
 main() {
 	if test $# -lt 1; then
 		echo "error: " >&2
@@ -98,6 +109,7 @@ main() {
 	run_setup2) ;;
 	run_snapshot) ;;
 	run_snapshot_root) ;;
+	snapshot) ;;
 	*)	echo "error: bad action '${action}'" >&2
 		return 1
 		;;
