@@ -1,9 +1,20 @@
 #!/bin/bash
 
-date-timestamp-for-file() {
+date-timestamp-for-file()
+{
+    local ARGS ns
     ARGS=('date');
-    test x"$1" != x && ARGS+=("--date=@$1");
-    ARGS+=("+%Y-%m-%d_%H-%M-%S");
+    for arg; do
+        if echo "$arg" | grep -q "^[0-9][0-9]*$" 2> /dev/null 1>&2; then
+            ARGS+=("--date=@$arg");
+        elif test x"$arg" = xns; then
+            ns=_%N
+        else
+            echo "error: " >&2
+            return 1
+        fi
+    done
+    ARGS+=("+%Y-%m-%d_%H-%M-%S$ns");
     "${ARGS[@]}"
 }
 
@@ -39,12 +50,12 @@ qemu_snapshot() {
 		mkdir -v "${back_rp_ne}" 1>&2 || return 1
 	fi
 
-	while true; do
-		date_timestamp="$(date-timestamp-for-file)"
+	date_timestamp="$(date-timestamp-for-file)"
+	qemu_snapshot_filename="${back_rp_ne}/${date_timestamp}.qcow2"
+	if test -f "$qemu_snapshot_filename"; then
+		date_timestamp="$(date-timestamp-for-file ns)"
 		qemu_snapshot_filename="${back_rp_ne}/${date_timestamp}.qcow2"
-		test -f "$qemu_snapshot_filename" || break
-		sleep 0.2
-	done
+	fi
 
 	if ! cd "${back_rp_ne}"; then
 		echo "error in ${FUNCNAME[0]}(): \"${back_rp_ne}\" can't change directory." >&2
