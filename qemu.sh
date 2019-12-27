@@ -31,7 +31,7 @@ action_run_root() {
 		$snapshot                   \
 		-device virtio-net,netdev=network0,mac=52:54:00:12:34:01 \
 		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
-		&
+		& PID=$!
 
 	echo PID: $PID
 }

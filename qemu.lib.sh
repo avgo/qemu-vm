@@ -46,9 +46,20 @@ qemu_snapshot() {
 		sleep 0.2
 	done
 
-	qemu-img create -f qcow2 -b "${back_rp}" "${qemu_snapshot_filename}"
+	if ! cd "${back_rp_ne}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${back_rp_ne}\" can't change directory." >&2
+		return 1
+	fi
 
-	qemu-img info "$qemu_snapshot_filename"
+	qemu_snapshot_do "../$(basename "${back_rp}")" "${qemu_snapshot_filename}"
+
+	cd -
+}
+
+qemu_snapshot_do() {
+	qemu-img create -f qcow2 -b "$@" || return 1
+
+	qemu-img info --backing-chain "$qemu_snapshot_filename"
 }
 
 qemu_snapshot_template() {
