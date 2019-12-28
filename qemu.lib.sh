@@ -50,7 +50,7 @@ qemu_snapshot() {
 		mkdir -v "${back_rp_ne}" 1>&2 || return 1
 	fi
 
-	date_timestamp="$(${script_dir}/bin/date-timestamp-for-file)"
+	date_timestamp="$(${script_dir}/bin/date-timestamp-for-file)" || return 1
 	qemu_snapshot_filename="${back_rp_ne}/${date_timestamp}.qcow2"
 
 	if ! cd "${back_rp_ne}"; then
