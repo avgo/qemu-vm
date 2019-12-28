@@ -91,11 +91,10 @@ void decode(const char *buf, long int *val)
 	short int *hash_e = hash + hash_size;
 	for (short int *p = hash; p != hash_e; ++p)
 		*p = HASH_NULL;
-	for (const char *c = allowed; *c != '\0';  ++c) {
+	for (const char *c = allowed; *c != '\0';  ++c)
 		hash[*c] = c - allowed;
-	}
 	*val = 0;
-	for (const char *c = buf; *c != '\0'; ++c) {
+	for (const char *c = buf; *c != '\0' && *c != '.'; ++c) {
 		short int cc = hash[*c];
 		if (cc == HASH_NULL) {
 			fprintf(stderr, "error: %d\n", c - buf);
