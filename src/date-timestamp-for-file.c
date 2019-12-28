@@ -4,10 +4,11 @@
 #include <time.h>
 
 const char *allowed = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+const char *dtm_fmt_def = "%Y-%m-%d_%H-%M-%S"; // example: "%F %T"
 
-void action_decode(const char *str);
+void action_decode(int argc, char **argv);
 int action_encode();
-void decode(const char *buf, long int *val);
+int decode(const char *buf, long int *val);
 void encode(char *buf, size_t size, long int val);
 int check(const char *str);
 
@@ -20,8 +21,6 @@ int action_encode()
 
 	clock_gettime(CLOCK_REALTIME, &tp);
 
-	struct tm tm1;
-
 /*	symbols: 5, arr sz with term. zero: 6, max value (time_t): 1073741823, max value (date): 2004-01-10 16:37:03
 	symbols: 6, arr sz with term. zero: 7, max value (time_t): 68719476735, max value (date): 4147-08-20 10:32:15
 	symbols: 7, arr sz with term. zero: 8, max value (time_t): 4398046511103, max value (date): 141338-07-19 05:25:03 */
@@ -30,25 +29,47 @@ int action_encode()
 	char buf_nsec[5+1];
 
 	encode(buf_nsec, sizeof(buf_nsec), tp.tv_nsec);
-	// strftime(buf_sec, sizeof buf_sec, "%Y-%m-%d_%H-%M-%S", localtime_r(&tp.tv_sec, &tm1));
 	encode(buf_sec, sizeof(buf_sec), tp.tv_sec);
-	// encode(buf_sec, sizeof(buf_sec), 1000000000);
 	printf("%s.%s\n", buf_sec, buf_nsec);
-#if 0
-	for (int i = -4; i < 6; i += 1) {
-		encode(buf_sec, sizeof(buf_sec), 4398046511103+i);
-		printf("%s\n", buf_sec);
-	}
-#endif
 
 	return 0;
 }
 
-void action_decode(const char *str)
+void action_decode(int argc, char **argv)
 {
+	const char *string = NULL, *tmp = NULL, *dtm_fmt = NULL;
+	for ( ; *argv != NULL; ++argv) {
+		tmp = *argv;
+		if (*tmp == '+') {
+			if (dtm_fmt == NULL)
+				dtm_fmt = tmp + 1;
+			else {
+				fprintf(stderr, "error: only one fmt string is allowed.\n");
+				exit(1);
+			}
+		}
+		else {
+			if (string == NULL)
+				string = tmp;
+			else {
+				fprintf(stderr, "error: only one time string is allowed.\n");
+				exit(1);
+			}
+		}
+	}
+	if (string == NULL) {
+		fprintf(stderr, "error: time string is absent.\n");
+		exit(1);
+	}
+	if (dtm_fmt == NULL)
+		dtm_fmt = dtm_fmt_def;
 	long int l;
-	decode(str, &l);
-	printf("%ld\n", l);
+	if (decode(string, &l) > -1) {
+		char buf[1024];
+		struct tm tm1;
+		strftime(buf, sizeof buf, dtm_fmt, localtime_r(&l, &tm1));
+		printf("%s\n", buf);
+	}
 }
 
 int check(const char *str) {
@@ -83,8 +104,9 @@ int check(const char *str) {
 
 #define HASH_NULL -1
 
-void decode(const char *buf, long int *val)
+int decode(const char *buf, long int *val)
 {
+	int ret = 0;
 	int all_len = strlen(allowed);
 	int hash_size = 256;
 	short int *hash = malloc(sizeof(short int) * hash_size);
@@ -98,12 +120,12 @@ void decode(const char *buf, long int *val)
 		short int cc = hash[*c];
 		if (cc == HASH_NULL) {
 			fprintf(stderr, "error: %d\n", c - buf);
-			free(hash);
-			return;
+			ret = -1; goto END;
 		}
 		*val = *val * all_len + cc;
 	}
-	free(hash);
+END:	free(hash);
+	return ret;
 }
 
 void encode(char *buf, size_t size, long int val)
@@ -148,7 +170,7 @@ int main(int argc, char *argv[])
 		action_encode();
 	}
 	else {
-		action_decode(argv[1]);
+		action_decode(argc-1, argv+1);
 	}
 	return 0;
 }
