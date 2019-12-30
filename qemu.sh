@@ -34,6 +34,8 @@ action_run_root() {
 		& PID=$!
 
 	echo PID: $PID
+
+	cat "/proc/${PID}/cmdline" | xargs -0 echo
 }
 
 action_run_setup() {
