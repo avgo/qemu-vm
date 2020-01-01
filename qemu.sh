@@ -30,10 +30,11 @@ action_run_root() {
 		-hda "${virt_hdd_loc}"      \
 		$snapshot                   \
 		-device virtio-net,netdev=network0,mac=52:54:00:12:34:01 \
-		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
-		& PID=$!
+		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no & PID=$!
 
 	echo PID: $PID
+
+	sleep 2
 
 	cat "/proc/${PID}/cmdline" | xargs -0 echo
 }
