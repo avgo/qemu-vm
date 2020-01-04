@@ -37,7 +37,7 @@ int action_encode()
 
 void action_decode(int argc, char **argv)
 {
-	const char *string = NULL, *tmp = NULL, *dtm_fmt = NULL;
+	const char *string = NULL, *tmp = NULL, *dtm_fmt = NULL, *encode_date = NULL;
 	for ( ; *argv != NULL; ++argv) {
 		tmp = *argv;
 		if (*tmp == '+') {
@@ -48,6 +48,10 @@ void action_decode(int argc, char **argv)
 				exit(1);
 			}
 		}
+		else
+		if (*tmp == '@') {
+			encode_date = tmp + 1;
+		}
 		else {
 			if (string == NULL)
 				string = tmp;
@@ -57,18 +61,49 @@ void action_decode(int argc, char **argv)
 			}
 		}
 	}
-	if (string == NULL) {
-		fprintf(stderr, "error: time string is absent.\n");
-		exit(1);
-	}
-	if (dtm_fmt == NULL)
-		dtm_fmt = dtm_fmt_def;
 	long int l;
-	if (decode(string, &l) > -1) {
-		char buf[1024];
-		struct tm tm1;
-		strftime(buf, sizeof buf, dtm_fmt, localtime_r(&l, &tm1));
-		printf("%s\n", buf);
+	if (encode_date == NULL) {
+		if (string == NULL) {
+			fprintf(stderr, "error: time string is absent.\n");
+			exit(1);
+		}
+		if (dtm_fmt == NULL)
+			dtm_fmt = dtm_fmt_def;
+		if (decode(string, &l) > -1) {
+			char buf[1024];
+			struct tm tm1;
+			strftime(buf, sizeof buf, dtm_fmt, localtime_r(&l, &tm1));
+			printf("%s\n", buf);
+		}
+	}
+	else {
+		if (string != NULL) {
+			fprintf(stderr, "error: bad parameter '%s'.\n", string);
+			exit(1);
+		}
+		if (dtm_fmt != NULL) {
+			fprintf(stderr, "error: format parameter is not needed if @ is specified.\n");
+			exit(1);
+		}
+
+		char *ptr;
+
+		l = strtol(encode_date, &ptr, 10);
+
+		if (ptr == encode_date) {
+			if (*ptr == '\0')
+				fprintf(stderr, "error: decimal digits expected after '@' symbol.\n");
+			else
+				fprintf(stderr, "error: bad value of @ parameter (%s).\nerror: only decimal digits are allowed.\n",
+						ptr);
+			exit(1);
+		}
+
+		char buf_sec[6+1];
+
+		encode(buf_sec, sizeof(buf_sec), l);
+
+		printf("%s\n", buf_sec);
 	}
 }
 
