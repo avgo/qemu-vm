@@ -130,11 +130,16 @@ END:	free(hash);
 
 void encode(char *buf, size_t size, long int val)
 {
+	if (size <= 0) {
+		fprintf(stderr, "error: no enough space.\n");
+		return;
+	}
+
 	int all_len = strlen(allowed);
 
-	--size; buf[size] = '\0';
+	char *p = buf + size - 1;
 
-	char *p = buf + size;
+	*p = '\0';
 
 	for ( ; val; val /= all_len) {
 		if (p == buf) {
