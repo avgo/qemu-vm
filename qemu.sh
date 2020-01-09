@@ -6,7 +6,7 @@ conf_rp="${script_dir}/qemu.conf.sh"
 source "$conf_rp"                      || exit 1
 
 action_mount() {
-	if test $# -ne 1; then
+	if test $# -ne 2; then
 		echo error: >&2
 		exit 1
 	fi
@@ -14,13 +14,24 @@ action_mount() {
 }
 
 action_mount_root() {
-	local img="$1"
+	local img="$1" mount_part="$2"
+	source "${script_dir}/qemu.lib.sh" || return 1
 	if lsmod | grep nbd > /dev/null 2>&1; then
 		true
 	else
 		echo invoking modprobe nbd...
 		modprobe nbd max_part=16 || return 1
 	fi
+
+	local img_m_pt
+
+	img_m_pt="$(check_file_ext "qcow2" "${img}")" || return 1
+
+	if mountpoint -q "${img_m_pt}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${img_m_pt}\" is already existing mountpoint." >&2
+		return 1
+	fi
+
 	# block device variables
 	local bd_idx bd_tmp block_dev block_dev_bn
 	for ((bd_idx=0;;++bd_idx)); do
@@ -44,6 +55,19 @@ action_mount_root() {
 	qemu-nbd -c "$block_dev" "$img" || return 1
 	echo image "$img" is mounted to "$block_dev"
 	echo "${block_dev_bn}" > "$img_mounted"
+
+	local mount_part_rp="${block_dev}${mount_part}"
+
+	if ! test -b "$mount_part_rp"; then
+		printf "error: part %s is not exists.\n" "$mount_part_rp" >&2
+		return 1
+	fi
+
+	if ! test -d "${img_m_pt}"; then
+		mkdir -v "${img_m_pt}" || return 1
+	fi
+
+	mount "${mount_part_rp}" "${img_m_pt}" || return 1
 }
 
 action_umount() {
@@ -55,7 +79,16 @@ action_umount() {
 }
 
 action_umount_root() {
-	local img="$1" img_mounted block_dev block_dev_bn
+	local img="$1" img_mounted block_dev block_dev_bn img_m_pt
+
+	source "${script_dir}/qemu.lib.sh" || return 1
+
+	img_m_pt="$(check_file_ext "qcow2" "${img}")" || return 1
+
+	if mountpoint -q "${img_m_pt}"; then
+		umount "${img_m_pt}" || return 1
+	fi
+
 	img_mounted="${img}.mounted"
 	if ! test -f "$img_mounted"; then
 		printf "error: image '%s' is not mounted (mount-file is absent).\n" "${img}" >&2
@@ -66,6 +99,7 @@ action_umount_root() {
 	printf "unmounting %s\n" "$block_dev"
 	qemu-nbd -d "${block_dev}" || return 1
 	rm -vf "$img_mounted"
+
 	if lsmod | grep nbd > /dev/null 2>&1; then
 		echo lsmod nbd rmmod
 		rmmod nbd || return 1

@@ -1,5 +1,33 @@
 #!/bin/bash
 
+check_file_ext() {
+	if test $# -ne 2; then
+		echo "error in ${FUNCNAME[0]}(): bad usage." >&2
+		return 1
+	fi
+
+	local img ext img_no_ext
+
+	img="$2"; ext="$1"; img_no_ext="${img%.$ext}"
+
+	if test x"${img_no_ext}" = x"${img}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${img}\" must be with '*.${ext}' extension." >&2
+		return 1
+	fi
+
+	if test x"${img_no_ext}" = x; then
+		echo "error in ${FUNCNAME[0]}(): \"${img}\" have only extension." >&2
+		return 1
+	fi
+
+	if test x"${img_no_ext%/}" != x"${img_no_ext}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${img_no_ext}\" must not be ends with \"/\"." >&2
+		return 1
+	fi
+
+	echo "${img_no_ext}"
+}
+
 date-timestamp-for-file()
 {
     local ARGS ns
