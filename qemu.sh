@@ -6,9 +6,9 @@ conf_rp="${script_dir}/qemu.conf.sh"
 source "$conf_rp"                      || exit 1
 
 action_mount() {
-	if test $# -ne 2; then
+	if test $# -ne 1; then
 		echo error: >&2
-		exit 1
+		return 1
 	fi
 	sudo "${script_rp}" mount_root "$@"
 }
@@ -23,17 +23,32 @@ action_mount_root() {
 		modprobe nbd max_part=16 || return 1
 	fi
 
-	local img_m_pt
+	local img_rmpt # root mount point
 
-	img_m_pt="$(check_file_ext "qcow2" "${img}")" || return 1
+	img_rmpt="$(check_file_ext "qcow2" "${img}")" || return 1
 
-	if mountpoint -q "${img_m_pt}"; then
-		echo "error in ${FUNCNAME[0]}(): \"${img_m_pt}\" is already existing mountpoint." >&2
+	if ! test -d "${img_rmpt}"; then
+		mkdir "${img_rmpt}" || return 1
+	fi
+
+	img_rmpt="${img_rmpt}/mpt"
+
+	if test -d "${img_rmpt}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${img_rmpt}\" is already existing mountpoint." >&2
 		return 1
 	fi
 
+	mkdir "${img_rmpt}" || return 1
+
+	local parts
+
+	parts="${img_rmpt}/parts"
+
+	mkdir "${parts}" || return 1
+
 	# block device variables
 	local bd_idx bd_tmp block_dev block_dev_bn
+
 	for ((bd_idx=0;;++bd_idx)); do
 		bd_tmp="/dev/nbd${bd_idx}"
 		test -b "$bd_tmp" || break
@@ -43,31 +58,46 @@ action_mount_root() {
 			break
 		fi
 	done
+
 	if test x"$block_dev" = x; then
 		echo "error: can't find free nbd device" >&2
 		return 1
 	fi
-	local img_mounted="${img}.mounted"
-	if test -f "$img_mounted"; then
-		printf "error: image %s is mounted at '%s' device.\n" "$img" "$(cat "$img_mounted")" >&2
-		return 1
-	fi
+
 	qemu-nbd -c "$block_dev" "$img" || return 1
-	echo image "$img" is mounted to "$block_dev"
-	echo "${block_dev_bn}" > "$img_mounted"
 
-	local mount_part_rp="${block_dev}${mount_part}"
+	local fs_type cur_mpt block_dev_part_bn
 
-	if ! test -b "$mount_part_rp"; then
-		printf "error: part %s is not exists.\n" "$mount_part_rp" >&2
-		return 1
-	fi
+	for dev1 in "$block_dev"*; do
+		fs_type="$(blkid -s TYPE -o value "$dev1")"
+		case "$fs_type" in
+		ext2 | ext3 | ext4 )
+			block_dev_part_bn="$(basename "$dev1")"
+			cur_mpt="${block_dev_part_bn#$block_dev_bn}"
+			if test x"${cur_mpt}" = x; then
+				echo "warning: can't mount $dev1"
+				continue
+			fi
+			cur_mpt="${parts}/${cur_mpt}"
+			mkdir -v "${cur_mpt}"
+			echo "mounting known fs (type '$fs_type') on $dev1 to ${cur_mpt}"
+			mount "${dev1}" "${cur_mpt}"
+			;;
+		*)	continue
+			;;
+		esac
+	done
 
-	if ! test -d "${img_m_pt}"; then
-		mkdir -v "${img_m_pt}" || return 1
-	fi
+	read
 
-	mount "${mount_part_rp}" "${img_m_pt}" || return 1
+	for cur_mpt in "${parts}"/*; do
+		umount -v "${cur_mpt}" && rmdir -v "${cur_mpt}"
+	done
+
+	qemu-nbd -d "${block_dev}" || return 1
+
+	rmdir -v "${parts}" || return 1
+	rmdir -v "${img_rmpt}" || return 1
 }
 
 action_umount() {
