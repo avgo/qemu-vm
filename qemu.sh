@@ -53,9 +53,7 @@ action_mount_root() {
 		bd_tmp="/dev/nbd${bd_idx}"
 		test -b "$bd_tmp" || break
 		if ! lsblk "$bd_tmp" > /dev/null 2>&1; then
-			block_dev="$bd_tmp"
-			block_dev_bn="$(basename "$block_dev")" || return 1
-			break
+			block_dev="$bd_tmp"; break
 		fi
 	done
 
@@ -65,6 +63,12 @@ action_mount_root() {
 	fi
 
 	qemu-nbd -c "$block_dev" "$img" || return 1
+
+	block_dev_bn="$(basename "$block_dev")" || return 1
+
+	local img_dev="${img_rmpt}/dev"
+
+	echo "${block_dev_bn}" > "${img_dev}"
 
 	local fs_type cur_mpt block_dev_part_bn
 
@@ -87,17 +91,6 @@ action_mount_root() {
 			;;
 		esac
 	done
-
-	read
-
-	for cur_mpt in "${parts}"/*; do
-		umount -v "${cur_mpt}" && rmdir -v "${cur_mpt}"
-	done
-
-	qemu-nbd -d "${block_dev}" || return 1
-
-	rmdir -v "${parts}" || return 1
-	rmdir -v "${img_rmpt}" || return 1
 }
 
 action_umount() {
@@ -109,33 +102,35 @@ action_umount() {
 }
 
 action_umount_root() {
-	local img="$1" img_mounted block_dev block_dev_bn img_m_pt
+	local img="$1" img_rmpt
 
 	source "${script_dir}/qemu.lib.sh" || return 1
 
-	img_m_pt="$(check_file_ext "qcow2" "${img}")" || return 1
+	img_rmpt="$(check_file_ext "qcow2" "${img}")" || return 1
 
-	if mountpoint -q "${img_m_pt}"; then
-		umount "${img_m_pt}" || return 1
-	fi
+	img_rmpt="${img_rmpt}/mpt"
 
-	img_mounted="${img}.mounted"
-	if ! test -f "$img_mounted"; then
-		printf "error: image '%s' is not mounted (mount-file is absent).\n" "${img}" >&2
+	if ! test -d "${img_rmpt}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${img}\" is not mounted." >&2
 		return 1
 	fi
-	block_dev_bn="$(cat "$img_mounted")" || return 1
-	block_dev="/dev/${block_dev_bn}"
-	printf "unmounting %s\n" "$block_dev"
-	qemu-nbd -d "${block_dev}" || return 1
-	rm -vf "$img_mounted"
 
-	if lsmod | grep nbd > /dev/null 2>&1; then
-		echo lsmod nbd rmmod
-		rmmod nbd || return 1
-	else
-		echo lsmod nbd not loaded
-	fi
+	local parts="${img_rmpt}/parts" cur_mpt
+
+	for cur_mpt in "${parts}"/*; do
+		umount -v "${cur_mpt}" && rmdir -v "${cur_mpt}"
+	done
+
+	local img_dev="${img_rmpt}/dev"
+
+	local block_dev_bn="$(cat "${img_dev}")" || return 1
+	local block_dev="/dev/${block_dev_bn}"
+
+	qemu-nbd -d "${block_dev}" || return 1
+
+	rmdir -v "${parts}" || return 1
+	rm -v "${img_dev}"
+	rmdir -v "${img_rmpt}" || return 1
 }
 
 action_run() {
