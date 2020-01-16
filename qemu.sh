@@ -62,7 +62,10 @@ action_mount_root() {
 		return 1
 	fi
 
-	qemu-nbd -c "$block_dev" "$img" || return 1
+	if ! qemu-nbd -c "$block_dev" "$img"; then
+		echo "error in ${FUNCNAME[0]}(): qemu-nbd invocation error: %s." "qemu-nbd -c $block_dev $img" >&2
+		return 1
+	fi
 
 	block_dev_bn="$(basename "$block_dev")" || return 1
 
