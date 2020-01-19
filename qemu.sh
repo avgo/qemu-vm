@@ -14,7 +14,7 @@ action_mount() {
 }
 
 action_mount_root() {
-	local img="$1" mount_part="$2"
+	local img="$1"
 	source "${script_dir}/qemu.lib.sh" || return 1
 	if lsmod | grep nbd > /dev/null 2>&1; then
 		true
@@ -39,12 +39,6 @@ action_mount_root() {
 	fi
 
 	mkdir "${img_rmpt}" || return 1
-
-	local parts
-
-	parts="${img_rmpt}/parts"
-
-	mkdir "${parts}" || return 1
 
 	# block device variables
 	local bd_idx bd_tmp block_dev block_dev_bn
@@ -75,7 +69,18 @@ action_mount_root() {
 
 	local fs_type cur_mpt block_dev_part_bn
 
-	for dev1 in "$block_dev"*; do
+	if ! mount_root_wait "$block_dev"; then
+		action_umount_root "${img}"
+		return 1
+	fi
+
+	local parts
+
+	parts="${img_rmpt}/parts"
+
+	mkdir "${parts}" || return 1
+
+	for dev1 in "$block_dev"p*; do
 		fs_type="$(blkid -s TYPE -o value "$dev1")"
 		case "$fs_type" in
 		ext2 | ext3 | ext4 )
@@ -88,9 +93,12 @@ action_mount_root() {
 			cur_mpt="${parts}/${cur_mpt}"
 			mkdir -v "${cur_mpt}"
 			echo "mounting known fs (type '$fs_type') on $dev1 to ${cur_mpt}"
-			mount "${dev1}" "${cur_mpt}"
+			if ! mount "${dev1}" "${cur_mpt}"; then
+				echo "error: mount failed" >&2
+			fi
 			;;
-		*)	continue
+		*)	echo "ommiting part $dev1, unknown fs ($fs_type)" >&2
+			continue
 			;;
 		esac
 	done
@@ -120,9 +128,12 @@ action_umount_root() {
 
 	local parts="${img_rmpt}/parts" cur_mpt
 
-	for cur_mpt in "${parts}"/*; do
-		umount -v "${cur_mpt}" && rmdir -v "${cur_mpt}"
-	done
+	if test -d "$parts"; then
+		for cur_mpt in "${parts}"/*; do
+			mountpoint -q "${cur_mpt}" && umount -v "${cur_mpt}"
+			rmdir -v "${cur_mpt}"
+		done
+	fi
 
 	local img_dev="${img_rmpt}/dev"
 
@@ -228,6 +239,21 @@ action_snapshot() {
 	source "${script_dir}/qemu.lib.sh" || return 1
 
 	qemu_snapshot "${1}"
+}
+
+mount_root_wait() {
+	local dev="$1" dev_i tries=0 tries_max=3
+	for ((;;)); do
+		for dev_i in "${dev}"p*; do
+			test -b "$dev_i" && return
+		done
+		if test $tries -lt $tries_max; then
+			echo waiting for sub devices in $dev ...
+			sleep 1; let ++tries
+		else
+			return 1
+		fi
+	done
 }
 
 main() {
