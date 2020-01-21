@@ -10,11 +10,17 @@ action_mount() {
 		echo error: >&2
 		return 1
 	fi
-	sudo "${script_rp}" mount_root "$@"
+
+	local me_u me_g
+
+	me_u="$(id -nu)" || return 1
+	me_g="$(id -ng)" || return 1
+
+	sudo "${script_rp}" mount_root "${me_u}" "${me_g}" "$@"
 }
 
 action_mount_root() {
-	local img="$1"
+	local me_u="$1" me_g="$2" img="$3"
 	source "${script_dir}/qemu.lib.sh" || return 1
 	if lsmod | grep nbd > /dev/null 2>&1; then
 		true
@@ -28,7 +34,8 @@ action_mount_root() {
 	img_rmpt="$(check_file_ext "qcow2" "${img}")" || return 1
 
 	if ! test -d "${img_rmpt}"; then
-		mkdir "${img_rmpt}" || return 1
+		runuser -u "$me_u" -g "$me_g" -- mkdir "${img_rmpt}" || return 1
+		ls -ld "${img_rmpt}"
 	fi
 
 	img_rmpt="${img_rmpt}/mpt"
