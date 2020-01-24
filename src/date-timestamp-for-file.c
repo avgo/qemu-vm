@@ -1,6 +1,9 @@
+#include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 
 const char *allowed = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
@@ -37,7 +40,7 @@ int action_encode()
 
 void action_decode(int argc, char **argv)
 {
-	const char *string = NULL, *tmp = NULL, *dtm_fmt = NULL, *encode_date = NULL;
+	const char *string = NULL, *tmp = NULL, *dtm_fmt = NULL, *encode_date = NULL, *filename = NULL;
 	for ( ; *argv != NULL; ++argv) {
 		tmp = *argv;
 		if (*tmp == '+') {
@@ -50,7 +53,30 @@ void action_decode(int argc, char **argv)
 		}
 		else
 		if (*tmp == '@') {
-			encode_date = tmp + 1;
+			if (tmp[1] == '@' && tmp[2] == '\0') {
+				if (filename == NULL) {
+					if (argv[1] == NULL) {
+						fprintf(stderr, "error: filename is required after @@.\n");
+						exit(1);
+					}
+					else {
+						if (argv[2] == NULL)
+							filename = argv[1];
+						else {
+							fprintf(stderr, "error: bad parameter '%s' after filename.\n",
+								argv[2]);
+							exit(1);
+						}
+					}
+				}
+				else {
+					fprintf(stderr, "error: only one filename is allowed.\n");
+					exit(1);
+				}
+			}
+			else {
+				encode_date = tmp + 1;
+			}
 		}
 		else {
 			if (string == NULL)
@@ -62,7 +88,37 @@ void action_decode(int argc, char **argv)
 		}
 	}
 	long int l;
-	if (encode_date == NULL) {
+	if (filename != NULL) {
+		struct stat st;
+		if (lstat(filename, &st) == -1) {
+			fprintf(stderr, "error: Can't open %s. %s (%u).\n", filename, strerror(errno), errno);
+			exit(1);
+		}
+
+		char buf_sec[6+1];
+		char buf_nsec[5+1];
+
+		struct stat_var {
+			char c;
+			size_t offset;
+		};
+
+		struct stat_var stv[] = {
+			{ 'X', offsetof(struct stat, st_atim) },
+			{ 'Y', offsetof(struct stat, st_mtim) },
+			{ 'Z', offsetof(struct stat, st_ctim) },
+		};
+
+		int stv_size = (sizeof(stv)/sizeof(*stv));
+
+		for (int i = 0; i < stv_size; ++i) {
+			encode(buf_nsec, sizeof(buf_nsec), ((struct timespec*)(((char*)&st)+stv[i].offset))->tv_nsec);
+			encode(buf_sec, sizeof(buf_sec), ((struct timespec*)(((char*)&st)+stv[i].offset))->tv_sec);
+
+			printf("%zd %s.%s\n", buf_sec, buf_nsec);
+		}
+	}
+	else if (encode_date == NULL) {
 		if (string == NULL) {
 			fprintf(stderr, "error: time string is absent.\n");
 			exit(1);
