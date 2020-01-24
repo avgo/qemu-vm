@@ -100,22 +100,24 @@ void action_decode(int argc, char **argv)
 
 		struct stat_var {
 			char c;
+			const char *title;
 			size_t offset;
 		};
 
 		struct stat_var stv[] = {
-			{ 'X', offsetof(struct stat, st_atim) },
-			{ 'Y', offsetof(struct stat, st_mtim) },
-			{ 'Z', offsetof(struct stat, st_ctim) },
+			{ 'X', "read:          ", offsetof(struct stat, st_atim) },
+			{ 'Y', "modification:  ", offsetof(struct stat, st_mtim) },
+			{ 'Z', "change:        ", offsetof(struct stat, st_ctim) },
+			{ 0 }
 		};
 
-		int stv_size = (sizeof(stv)/sizeof(*stv));
+		for (struct stat_var *stv_i = stv; stv_i->c; ++stv_i) {
+			struct timespec* stv_i_ts = (struct timespec*) ( ((char*)&st) + stv_i->offset );
 
-		for (int i = 0; i < stv_size; ++i) {
-			encode(buf_nsec, sizeof(buf_nsec), ((struct timespec*)(((char*)&st)+stv[i].offset))->tv_nsec);
-			encode(buf_sec, sizeof(buf_sec), ((struct timespec*)(((char*)&st)+stv[i].offset))->tv_sec);
+			encode(buf_nsec, sizeof(buf_nsec), stv_i_ts->tv_nsec);
+			encode(buf_sec, sizeof(buf_sec), stv_i_ts->tv_sec);
 
-			printf("%zd %s.%s\n", buf_sec, buf_nsec);
+			printf("%s%s.%s\n", stv_i->title, buf_sec, buf_nsec);
 		}
 	}
 	else if (encode_date == NULL) {
