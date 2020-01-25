@@ -179,7 +179,12 @@ void action_decode(int argc, char **argv)
 			char buf[1024];
 			struct tm tm1;
 
-			size_t n = strftime(buf, sizeof buf, dtm_fmt_def, localtime_r(&l, &tm1));
+			if (localtime_r(&l, &tm1) == NULL) {
+				fprintf(stderr, "error: %s (%u).\n", strerror(errno), errno);
+				return;
+			}
+
+			size_t n = strftime(buf, sizeof buf, dtm_fmt_def, &tm1);
 
 			if (*endptr == '.') {
 				++endptr;
