@@ -24,7 +24,7 @@ const char *dtm_fmt_def = "%Y-%m-%d_%H-%M-%S"; // example: "%F %T"
 
 void action_decode(int argc, char **argv);
 int action_encode();
-int decode(const char *buf, long int *val);
+int decode(const char *buf, long int *val, char **endptr);
 void encode(char *buf, size_t size, long int val);
 int check(const char *str);
 
@@ -168,13 +168,30 @@ void action_decode(int argc, char **argv)
 			fprintf(stderr, "error: time string is absent.\n");
 			exit(1);
 		}
-		if (dtm_fmt == NULL)
-			dtm_fmt = dtm_fmt_def;
-		if (decode(string, &l) > -1) {
+		if (dtm_fmt == NULL) {
+			char *endptr;
+
+			decode(string, &l, &endptr);
+
+			if (string == endptr)
+				return;
+
 			char buf[1024];
 			struct tm tm1;
-			strftime(buf, sizeof buf, dtm_fmt, localtime_r(&l, &tm1));
-			printf("%s\n", buf);
+
+			size_t n = strftime(buf, sizeof buf, dtm_fmt_def, localtime_r(&l, &tm1));
+
+			if (*endptr == '.') {
+				++endptr;
+				decode(endptr, &l, &endptr);
+				snprintf(buf + n, sizeof(buf) - n, ".%09u\n", l);
+			}
+			else {
+				buf[n] = '\n'; ++n;
+				buf[n] = '\0';
+			}
+
+			fputs(buf, stdout);
 		}
 	}
 	else {
@@ -240,9 +257,8 @@ int check(const char *str) {
 
 #define HASH_NULL -1
 
-int decode(const char *buf, long int *val)
+int decode(const char *buf, long int *val, char **endptr)
 {
-	int ret = 0;
 	int all_len = strlen(allowed);
 	int hash_size = 256;
 	short int *hash = malloc(sizeof(short int) * hash_size);
@@ -252,16 +268,16 @@ int decode(const char *buf, long int *val)
 	for (const char *c = allowed; *c != '\0';  ++c)
 		hash[*c] = c - allowed;
 	*val = 0;
-	for (const char *c = buf; *c != '\0' && *c != '.'; ++c) {
+	const char *c;
+	for (c = buf; *c != '\0'; ++c) {
 		short int cc = hash[*c];
-		if (cc == HASH_NULL) {
-			fprintf(stderr, "error: %d\n", c - buf);
-			ret = -1; goto END;
-		}
+		if (cc == HASH_NULL)
+			break;
 		*val = *val * all_len + cc;
 	}
-END:	free(hash);
-	return ret;
+	free(hash);
+	if (endptr != NULL) *endptr = (char*) c;
+	return 0;
 }
 
 void encode(char *buf, size_t size, long int val)
@@ -296,7 +312,7 @@ void test() {
 	for (long int i = 950000000; i <= 2000000000; ++i) {
 		encode(buf, sizeof buf, i);
 		long int j;
-		decode(buf, &j);
+		decode(buf, &j, NULL);
 		if (i != j) {
 			fprintf(stderr, "fail!\n");
 			break;
