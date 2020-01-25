@@ -6,6 +6,19 @@
 #include <sys/stat.h>
 #include <time.h>
 
+struct stat_var {
+	char c;
+	const char *title;
+	size_t offset;
+};
+
+struct stat_var stat_opts[] = {
+	{ 'X', "read:          ", offsetof(struct stat, st_atim) },
+	{ 'Y', "modification:  ", offsetof(struct stat, st_mtim) },
+	{ 'Z', "change:        ", offsetof(struct stat, st_ctim) },
+	{ 0 }
+};
+
 const char *allowed = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
 const char *dtm_fmt_def = "%Y-%m-%d_%H-%M-%S"; // example: "%F %T"
 
@@ -40,19 +53,19 @@ int action_encode()
 
 void action_decode(int argc, char **argv)
 {
-	const char *string = NULL, *tmp = NULL, *dtm_fmt = NULL, *encode_date = NULL, *filename = NULL;
-	for ( ; *argv != NULL; ++argv) {
+	const char *string = NULL, *tmp = NULL, *dtm_fmt = NULL, *encode_date = NULL, *stat_opt = NULL, *filename = NULL;
+	for ( ; *argv != NULL; ) {
 		tmp = *argv;
 		if (*tmp == '+') {
-			if (dtm_fmt == NULL)
-				dtm_fmt = tmp + 1;
+			if (dtm_fmt == NULL) {
+				dtm_fmt = tmp + 1; ++argv;
+			}
 			else {
 				fprintf(stderr, "error: only one fmt string is allowed.\n");
 				exit(1);
 			}
 		}
-		else
-		if (*tmp == '@') {
+		else if (*tmp == '@') {
 			if (tmp[1] == '@' && tmp[2] == '\0') {
 				if (filename == NULL) {
 					if (argv[1] == NULL) {
@@ -60,12 +73,19 @@ void action_decode(int argc, char **argv)
 						exit(1);
 					}
 					else {
-						if (argv[2] == NULL)
-							filename = argv[1];
+						if (argv[2] == NULL) {
+							filename = argv[1]; ++argv;
+						}
 						else {
-							fprintf(stderr, "error: bad parameter '%s' after filename.\n",
-								argv[2]);
-							exit(1);
+							if (argv[3] == NULL) {
+								stat_opt = argv[1];
+								filename = argv[2]; argv += 2;
+							}
+							else {
+								fprintf(stderr, "error: bad parameter '%s' after filename.\n",
+									argv[3]);
+								exit(1);
+							}
 						}
 					}
 				}
@@ -75,12 +95,13 @@ void action_decode(int argc, char **argv)
 				}
 			}
 			else {
-				encode_date = tmp + 1;
+				encode_date = tmp + 1; ++argv;
 			}
 		}
 		else {
-			if (string == NULL)
-				string = tmp;
+			if (string == NULL) {
+				string = tmp; ++argv;
+			}
 			else {
 				fprintf(stderr, "error: only one time string is allowed.\n");
 				exit(1);
@@ -89,6 +110,18 @@ void action_decode(int argc, char **argv)
 	}
 	long int l;
 	if (filename != NULL) {
+		char stat_opt_c;
+		if (stat_opt != NULL) {
+			stat_opt_c = *stat_opt;
+			if (stat_opt_c == '\0') {
+				fprintf(stderr, "error: stat opt is empty.\n");
+				exit(1);
+			}
+			if (stat_opt[1] != '\0') {
+				fprintf(stderr, "error: bad stat opt '%s', stat opt must be one char.\n", stat_opt);
+				exit(1);
+			}
+		}
 		struct stat st;
 		if (lstat(filename, &st) == -1) {
 			fprintf(stderr, "error: Can't open %s. %s (%u).\n", filename, strerror(errno), errno);
@@ -98,30 +131,36 @@ void action_decode(int argc, char **argv)
 		char buf_sec[6+1];
 		char buf_nsec[5+1];
 
-		struct stat_var {
-			char c;
-			const char *title;
-			size_t offset;
-		};
+		if (stat_opt) {
+			struct stat_var *stv_i;
 
-		struct stat_var stv[] = {
-			{ 'X', "read:          ", offsetof(struct stat, st_atim) },
-			{ 'Y', "modification:  ", offsetof(struct stat, st_mtim) },
-			{ 'Z', "change:        ", offsetof(struct stat, st_ctim) },
-			{ 0 }
-		};
+			for (stv_i = stat_opts; stv_i->c && stv_i->c != stat_opt_c; ++stv_i) ;
 
-		for (struct stat_var *stv_i = stv; stv_i->c; ++stv_i) {
+			if (!stv_i->c) {
+				fprintf(stderr, "error: bad stat opt '%s'.\n", stat_opt);
+				exit(1);
+			}
+
 			struct timespec* stv_i_ts = (struct timespec*) ( ((char*)&st) + stv_i->offset );
 
 			encode(buf_nsec, sizeof(buf_nsec), stv_i_ts->tv_nsec);
 			encode(buf_sec, sizeof(buf_sec), stv_i_ts->tv_sec);
 
-			char buf[1024];
-			struct tm tm1;
-			strftime(buf, sizeof buf, "%F %T", localtime_r(&stv_i_ts->tv_sec, &tm1));
+			printf("%s.%s\n", buf_sec, buf_nsec);
+		}
+		else {
+			for (struct stat_var *stv_i = stat_opts; stv_i->c; ++stv_i) {
+				struct timespec* stv_i_ts = (struct timespec*) ( ((char*)&st) + stv_i->offset );
 
-			printf("%s%s.%s %s.%09d\n", stv_i->title, buf_sec, buf_nsec, buf, stv_i_ts->tv_nsec);
+				encode(buf_nsec, sizeof(buf_nsec), stv_i_ts->tv_nsec);
+				encode(buf_sec, sizeof(buf_sec), stv_i_ts->tv_sec);
+
+				char buf[1024];
+				struct tm tm1;
+				strftime(buf, sizeof buf, "%F %T", localtime_r(&stv_i_ts->tv_sec, &tm1));
+
+				printf("%s%s.%s %s.%09d\n", stv_i->title, buf_sec, buf_nsec, buf, stv_i_ts->tv_nsec);
+			}
 		}
 	}
 	else if (encode_date == NULL) {
