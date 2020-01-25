@@ -117,7 +117,11 @@ void action_decode(int argc, char **argv)
 			encode(buf_nsec, sizeof(buf_nsec), stv_i_ts->tv_nsec);
 			encode(buf_sec, sizeof(buf_sec), stv_i_ts->tv_sec);
 
-			printf("%s%s.%s\n", stv_i->title, buf_sec, buf_nsec);
+			char buf[1024];
+			struct tm tm1;
+			strftime(buf, sizeof buf, "%F %T", localtime_r(&stv_i_ts->tv_sec, &tm1));
+
+			printf("%s%s.%s %s.%09d\n", stv_i->title, buf_sec, buf_nsec, buf, stv_i_ts->tv_nsec);
 		}
 	}
 	else if (encode_date == NULL) {
