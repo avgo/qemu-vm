@@ -137,8 +137,10 @@ action_umount_root() {
 
 	if test -d "$parts"; then
 		for cur_mpt in "${parts}"/*; do
-			mountpoint -q "${cur_mpt}" && umount -v "${cur_mpt}"
-			rmdir -v "${cur_mpt}"
+			if mountpoint -q "${cur_mpt}"; then
+				umount -v "${cur_mpt}" || return 1
+			fi
+			rmdir -v "${cur_mpt}" || return 1
 		done
 	fi
 
