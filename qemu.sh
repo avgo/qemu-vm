@@ -11,16 +11,11 @@ action_mount() {
 		return 1
 	fi
 
-	local me_u me_g
-
-	me_u="$(id -nu)" || return 1
-	me_g="$(id -ng)" || return 1
-
-	sudo "${script_rp}" mount_root "${me_u}" "${me_g}" "$@"
+	sudo "${script_rp}" mount_root "$@"
 }
 
 action_mount_root() {
-	local me_u="$1" me_g="$2" img="$3"
+	local magic="$1"
 	source "${script_dir}/qemu.lib.sh" || return 1
 	if lsmod | grep nbd > /dev/null 2>&1; then
 		true
@@ -29,19 +24,15 @@ action_mount_root() {
 		modprobe nbd max_part=16 || return 1
 	fi
 
-	local img_rmpt # root mount point
-
-	img_rmpt="$(check_file_ext "qcow2" "${img}")" || return 1
-
-	if ! test -d "${img_rmpt}"; then
-		runuser -u "$me_u" -g "$me_g" -- mkdir "${img_rmpt}" || return 1
-		ls -ld "${img_rmpt}"
+	if ! check_magic_dir "${magic}"; then
+		echo "error in ${FUNCNAME[0]}()." >&2
+		return 1
 	fi
 
-	img_rmpt="${img_rmpt}/mpt"
+	local img_rmpt="${magic}/mpt"
 
 	if test -d "${img_rmpt}"; then
-		echo "error in ${FUNCNAME[0]}(): \"${img_rmpt}\" is already existing mountpoint." >&2
+		echo "error in ${FUNCNAME[0]}(): \"${magic}\" is already have existing mountpoint." >&2
 		return 1
 	fi
 
@@ -62,6 +53,8 @@ action_mount_root() {
 		echo "error: can't find free nbd device" >&2
 		return 1
 	fi
+
+	local img="${magic}/img.qcow2"
 
 	if ! qemu-nbd -c "$block_dev" "$img"; then
 		echo "error in ${FUNCNAME[0]}(): qemu-nbd invocation error: %s." "qemu-nbd -c $block_dev $img" >&2
@@ -120,16 +113,19 @@ action_umount() {
 }
 
 action_umount_root() {
-	local img="$1" img_rmpt
+	local magic="$1"
 
 	source "${script_dir}/qemu.lib.sh" || return 1
 
-	img_rmpt="$(check_file_ext "qcow2" "${img}")" || return 1
+	if ! check_magic_dir "${magic}"; then
+		echo "error in ${FUNCNAME[0]}()." >&2
+		return 1
+	fi
 
-	img_rmpt="${img_rmpt}/mpt"
+	local img_rmpt="${magic}/mpt"
 
 	if ! test -d "${img_rmpt}"; then
-		echo "error in ${FUNCNAME[0]}(): \"${img}\" is not mounted." >&2
+		echo "error in ${FUNCNAME[0]}(): \"${magic}\" is not mounted." >&2
 		return 1
 	fi
 
@@ -137,22 +133,24 @@ action_umount_root() {
 
 	if test -d "$parts"; then
 		for cur_mpt in "${parts}"/*; do
+			test -d "${cur_mpt}" || break
 			if mountpoint -q "${cur_mpt}"; then
 				umount -v "${cur_mpt}" || return 1
 			fi
 			rmdir -v "${cur_mpt}" || return 1
 		done
+		rmdir -v "${parts}" || return 1
 	fi
 
-	local img_dev="${img_rmpt}/dev"
+	local img_dev="${img_rmpt}/dev" block_dev block_dev_bn
 
-	local block_dev_bn="$(cat "${img_dev}")" || return 1
-	local block_dev="/dev/${block_dev_bn}"
+	if test -f "${img_dev}"; then
+		block_dev_bn="$(cat "${img_dev}")" || return 1
+		block_dev="/dev/${block_dev_bn}"
+		qemu-nbd -d "${block_dev}" || return 1
+		rm -v "${img_dev}" || return 1
+	fi
 
-	qemu-nbd -d "${block_dev}" || return 1
-
-	rmdir -v "${parts}" || return 1
-	rm -v "${img_dev}"
 	rmdir -v "${img_rmpt}" || return 1
 }
 

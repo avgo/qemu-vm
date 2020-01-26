@@ -28,6 +28,22 @@ check_file_ext() {
 	echo "${img_no_ext}"
 }
 
+check_magic_dir() {
+	local magic="$1"
+
+	if ! test -d "${magic}"; then
+		echo "error in ${FUNCNAME[0]}(): Directory (magic) \"${magic}\" not exists." >&2
+		return 1
+	fi
+
+	local img="${magic}/img.qcow2"
+
+	if ! test -f "${img}"; then
+		echo "error in ${FUNCNAME[0]}(): img.qcow2 is not exists in directory (magic) \"${magic}\"." >&2
+		return 1
+	fi
+}
+
 date-timestamp-for-file()
 {
     local ARGS ns
@@ -97,6 +113,36 @@ qemu_snapshot_do() {
 	qemu-img info --backing-chain "$qemu_snapshot_filename"
 }
 
-qemu_snapshot_template() {
-	:
+qemu_snapshot2() {
+	unset qemu_snapshot2_filename
+	local magic="$1"; shift
+
+	if ! check_magic_dir "${magic}"; then
+		echo "error in ${FUNCNAME[0]}()." >&2
+		return 1
+	fi
+
+	local img="${magic}/img.qcow2"
+	local imgs="${magic}/i"
+
+	if ! test -d "${imgs}"; then
+		mkdir -v "${imgs}" || return 1
+	fi
+
+	date_timestamp="$(${script_dir}/bin/date-timestamp-for-file)" || return 1
+
+	magic_snapshot="${imgs}/${date_timestamp}"
+
+	mkdir -v "${magic_snapshot}" || return 1
+
+	cd "${magic_snapshot}"
+
+	if ! qemu-img create -f qcow2 -b "../../img.qcow2" "img.qcow2"; then
+		cd -
+		return 1
+	fi
+
+	qemu-img info --backing-chain "img.qcow2"
+
+	cd -
 }
