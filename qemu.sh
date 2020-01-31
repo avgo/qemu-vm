@@ -36,6 +36,13 @@ action_mount_root() {
 		return 1
 	fi
 
+	local magic_i="${magic}/i"
+
+	if test -d "${magic_i}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${magic}\" has i-dir, can't mount." >&2
+		return 1
+	fi
+
 	mkdir "${img_rmpt}" || return 1
 
 	# block device variables
