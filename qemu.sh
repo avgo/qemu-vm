@@ -252,7 +252,7 @@ action_snapshot() {
 
 	source "${script_dir}/qemu.lib.sh" || return 1
 
-	qemu_snapshot "${1}"
+	qemu_snapshot2 "${1}"
 }
 
 mount_root_wait() {
