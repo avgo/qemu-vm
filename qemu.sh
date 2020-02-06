@@ -166,24 +166,30 @@ action_run() {
 }
 
 action_run_root() {
-	local snapshot virt_hdd_loc
-
 	if test $# -ne 1; then
-		echo error: >&2
+		echo error: bad usage. >&2
 		return 1
 	fi
 
-	if test x"$1" = x-snapshot; then
-		snapshot=-snapshot
-		virt_hdd_loc="$virt_hdd"
-	else
-		snapshot=
-		virt_hdd_loc="$1"
+	local magic="$1"
+
+	local magic_i="${magic}/i"
+
+	if test -d "${magic_i}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${magic}\" has i-dir, can't run." >&2
+		return 1
+	fi
+
+	local virt_hdd="${magic}/img.qcow2"
+
+	if ! test -f "$virt_hdd"; then
+		echo "error in ${FUNCNAME[0]}(): \"${virt_hdd}\" is not exists, can't run." >&2
+		return 1
 	fi
 
 	qemu-system-x86_64                  \
 		-m 2G                       \
-		-hda "${virt_hdd_loc}"      \
+		-hda "${virt_hdd}"          \
 		$snapshot                   \
 		-device virtio-net,netdev=network0,mac=52:54:00:12:34:01 \
 		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no & PID=$!
