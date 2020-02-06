@@ -72,21 +72,17 @@ void action_decode(int argc, char **argv)
 						fprintf(stderr, "error: filename is required after @@.\n");
 						exit(1);
 					}
+					else if (argv[2] == NULL) {
+						filename = argv[1]; ++argv;
+					}
+					else if (argv[3] == NULL) {
+						stat_opt = argv[1];
+						filename = argv[2]; argv += 2;
+					}
 					else {
-						if (argv[2] == NULL) {
-							filename = argv[1]; ++argv;
-						}
-						else {
-							if (argv[3] == NULL) {
-								stat_opt = argv[1];
-								filename = argv[2]; argv += 2;
-							}
-							else {
-								fprintf(stderr, "error: bad parameter '%s' after filename.\n",
-									argv[3]);
-								exit(1);
-							}
-						}
+						fprintf(stderr, "error: bad parameter '%s' after filename.\n",
+							argv[3]);
+						exit(1);
 					}
 				}
 				else {
@@ -98,14 +94,12 @@ void action_decode(int argc, char **argv)
 				encode_date = tmp + 1; ++argv;
 			}
 		}
+		else if (string == NULL) {
+			string = tmp; ++argv;
+		}
 		else {
-			if (string == NULL) {
-				string = tmp; ++argv;
-			}
-			else {
-				fprintf(stderr, "error: only one time string is allowed.\n");
-				exit(1);
-			}
+			fprintf(stderr, "error: only one time string is allowed.\n");
+			exit(1);
 		}
 	}
 	long int l;
