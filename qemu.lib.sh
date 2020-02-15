@@ -135,7 +135,7 @@ qemu_snapshot2() {
 
 	mkdir -v "${magic_snapshot}" || return 1
 
-	cd "${magic_snapshot}"
+	cd "${magic_snapshot}" || return 1
 
 	if ! qemu-img create -f qcow2 -b "../../img.qcow2" "img.qcow2"; then
 		cd -
@@ -145,4 +145,6 @@ qemu_snapshot2() {
 	qemu-img info --backing-chain "img.qcow2"
 
 	cd -
+
+	echo new image: ${magic_snapshot}
 }
