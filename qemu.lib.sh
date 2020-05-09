@@ -116,6 +116,11 @@ qemu_snapshot_do() {
 qemu_snapshot2() {
 	unset qemu_snapshot2_filename
 	local magic="$1"; shift
+	local ptr
+
+	if test $# -gt 0; then
+		ptr="$1"; shift
+	fi
 
 	if ! check_magic_dir "${magic}"; then
 		echo "error in ${FUNCNAME[0]}()." >&2
@@ -147,4 +152,6 @@ qemu_snapshot2() {
 	cd -
 
 	echo new image: ${magic_snapshot}
+
+	test x"$ptr" = x || eval "${ptr}=\"\${magic_snapshot}\""
 }

@@ -232,11 +232,10 @@ action_run_setup2() {
 }
 
 action_run_snapshot() {
-	source "${script_dir}/qemu.lib.sh" || return 1
-	qemu_snapshot "${backing_fn}"
-	qemu_snapshot "${qemu_snapshot_filename}"
-	echo sudo "${script_rp}" run_snapshot_root "${qemu_snapshot_filename}"
-	sudo "${script_rp}" run_snapshot_root "${qemu_snapshot_filename}"
+	local backing_fn="$1"; shift
+	source "${script_dir}/qemu.lib.sh"               || return 1
+	qemu_snapshot2 "${backing_fn}" rs_temp_snapshot  || return 1
+	sudo "${script_rp}" run_root "${rs_temp_snapshot}"
 }
 
 action_run_snapshot_root() {
