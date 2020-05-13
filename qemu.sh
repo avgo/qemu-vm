@@ -235,6 +235,10 @@ action_run_snapshot() {
 	local backing_fn="$1"; shift
 	source "${script_dir}/qemu.lib.sh"               || return 1
 	qemu_snapshot2 "${backing_fn}" rs_temp_snapshot  || return 1
+	cat > "${rs_temp_snapshot}/info.txt" <<EOF
+$(${script_dir}/bin/date-timestamp-for-file $(basename "${rs_temp_snapshot}"))
+temporary snapshot
+EOF
 	sudo "${script_rp}" run_root "${rs_temp_snapshot}"
 }
 
