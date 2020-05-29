@@ -3,3 +3,7 @@
 
 # virtual cd-rom drive
 #virt_cdrom=/path/virt_cdrom.qcow2
+
+# virtual hdd dir with all virt HDDs,
+# snapshots and backing files
+#virt_hdd_dir="/virt_hdd_dir"

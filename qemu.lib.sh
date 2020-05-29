@@ -155,3 +155,18 @@ qemu_snapshot2() {
 
 	test x"$ptr" = x || eval "${ptr}=\"\${magic_snapshot}\""
 }
+
+virt_hdd_dir() {
+	local dir1="$1"; shift
+	local dir2="$virt_hdd_dir/$dir1"
+	if test -d "$dir2"; then
+		dir1="$dir2"
+	elif ! test -d "$dir1"; then
+		echo "error: not finded.
+    $dir1
+    $dir2" >&2
+		return 1
+	fi
+	realpath "$dir1" || return 1
+	return
+}

@@ -162,7 +162,10 @@ action_umount_root() {
 }
 
 action_run() {
-	sudo "${script_rp}" run_root "$@"
+	local dir="$1"; shift
+	source "${script_dir}/qemu.lib.sh" || return 1
+	dir="$(virt_hdd_dir "$dir")"       || return 1
+	sudo "${script_rp}" run_root "$dir"
 }
 
 action_run_root() {
@@ -234,6 +237,7 @@ action_run_setup2() {
 action_run_snapshot() {
 	local backing_fn="$1"; shift
 	source "${script_dir}/qemu.lib.sh"               || return 1
+	backing_fn="$(virt_hdd_dir "$backing_fn")"       || return 1
 	qemu_snapshot2 "${backing_fn}" rs_temp_snapshot  || return 1
 	cat > "${rs_temp_snapshot}/info.txt" <<EOF
 $(${script_dir}/bin/date-timestamp-for-file $(basename "${rs_temp_snapshot}"))
