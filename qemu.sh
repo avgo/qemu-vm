@@ -36,12 +36,7 @@ action_mount_root() {
 		return 1
 	fi
 
-	local magic_i="${magic}/i"
-
-	if test -d "${magic_i}"; then
-		echo "error in ${FUNCNAME[0]}(): \"${magic}\" has i-dir, can't mount." >&2
-		return 1
-	fi
+	check_i_dir "${magic}" "can't mount" && return 1
 
 	mkdir "${img_rmpt}" || return 1
 
@@ -111,6 +106,25 @@ action_mount_root() {
 	done
 }
 
+action_rm() {
+	if test $# -ne 1; then
+		echo error: >&2
+		return 1
+	fi
+	source "${script_dir}/qemu.lib.sh" || return 1
+	local dir="$1"; shift
+	dir="$(virt_hdd_dir "$dir")"       || return 1
+	if ! check_magic_dir "${dir}"; then
+		echo "error in ${FUNCNAME[0]}()." >&2
+		return 1
+	fi
+	if check_i_dir "${dir}" "delete all child at first"; then
+		find "${dir}" -type d
+		return 1
+	fi
+	rm -rf "${dir}"
+}
+
 action_umount() {
 	if test $# -ne 1; then
 		echo error: >&2
@@ -176,12 +190,7 @@ action_run_root() {
 
 	local magic="$1"
 
-	local magic_i="${magic}/i"
-
-	if test -d "${magic_i}"; then
-		echo "error in ${FUNCNAME[0]}(): \"${magic}\" has i-dir, can't run." >&2
-		return 1
-	fi
+	check_i_dir "${magic}" "can't run" && return 1
 
 	local virt_hdd="${magic}/img.qcow2"
 
@@ -292,6 +301,7 @@ main() {
 	case "${action}" in
 	mount) ;;
 	mount_root) ;;
+	rm) ;;
 	run) ;;
 	run_root) ;;
 	run_setup) ;;

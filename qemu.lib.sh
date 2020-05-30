@@ -28,6 +28,23 @@ check_file_ext() {
 	echo "${img_no_ext}"
 }
 
+check_i_dir() {
+	local magic="${1}"; shift
+	local err_msg
+	if test $# -gt 0; then
+		err_msg=", ${1}"; shift
+	fi
+
+	local magic_i="${magic}/i"
+
+	if test -d "${magic_i}"; then
+		echo "error in ${FUNCNAME[0]}(): \"${magic}\" has i-dir${err_msg}." >&2
+		return
+	fi
+
+	return 1
+}
+
 check_magic_dir() {
 	local magic="$1"
 
