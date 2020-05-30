@@ -205,6 +205,8 @@ action_run_root() {
 
 	local magic="$1"
 
+	source "${script_dir}/qemu.lib.sh" || return 1
+
 	check_i_dir "${magic}" "can't run" && return 1
 
 	local virt_hdd="${magic}/img.qcow2"
