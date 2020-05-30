@@ -5,6 +5,21 @@ script_dir="$(dirname "${script_rp}")" || exit 1
 conf_rp="${script_dir}/qemu.conf.sh"
 source "$conf_rp"                      || exit 1
 
+action_ls() {
+	if test $# -ne 1; then
+		echo error: >&2
+		return 1
+	fi
+	source "${script_dir}/qemu.lib.sh" || return 1
+	local dir="$1"; shift
+	dir="$(virt_hdd_dir "$dir")"       || return 1
+	if ! check_magic_dir "${dir}"; then
+		echo "error in ${FUNCNAME[0]}()." >&2
+		return 1
+	fi
+	find "${dir}" -type d
+}
+
 action_mount() {
 	if test $# -ne 1; then
 		echo error: >&2
@@ -299,6 +314,7 @@ main() {
 	fi
 	local action="$1"; shift
 	case "${action}" in
+	ls) ;;
 	mount) ;;
 	mount_root) ;;
 	rm) ;;
