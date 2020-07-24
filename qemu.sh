@@ -272,17 +272,6 @@ EOF
 	sudo "${script_rp}" run_root "${rs_temp_snapshot}"
 }
 
-action_run_snapshot_root() {
-	echo UID: $UID
-	qemu-system-x86_64                  \
-		-m 2G                       \
-		-hda "${1}"                 \
-		-device virtio-net,netdev=network0,mac=52:54:00:12:34:01 \
-		-netdev tap,id=network0,ifname=tap0,script=no,downscript=no \
-		&
-	echo "PID: $PID hda: ${1}"
-}
-
 action_snapshot() {
 	if test $# -ne 1; then
 		echo "error: bad usage." >&2
@@ -325,7 +314,6 @@ main() {
 	run_setup) ;;
 	run_setup2) ;;
 	run_snapshot) ;;
-	run_snapshot_root) ;;
 	snapshot) ;;
 	umount) ;;
 	umount_root) ;;
