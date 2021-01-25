@@ -190,6 +190,17 @@ action_umount_root() {
 	rmdir -v "${img_rmpt}" || return 1
 }
 
+action_rp() {
+	if test $# -ne 1; then
+		echo error: >&2
+		return 1
+	fi
+	source "${script_dir}/qemu.lib.sh" || return 1
+	local dir="$1"; shift
+	dir="$(virt_hdd_dir "$dir")"       || return 1
+	echo "${dir}"
+}
+
 action_run() {
 	local dir="$1"; shift
 	source "${script_dir}/qemu.lib.sh" || return 1
@@ -309,6 +320,7 @@ main() {
 	mount) ;;
 	mount_root) ;;
 	rm) ;;
+	rp) ;;
 	run) ;;
 	run_root) ;;
 	run_setup) ;;
